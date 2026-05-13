@@ -1,0 +1,41 @@
+{
+  "persona": {
+    "tone": ["신뢰감", "전문성", "친근함", "긍정", "미래지향"],
+    "start_without_self_intro": true
+  },
+  "structure": {
+    "title_format": "질문형 메인 제목: 부제목",
+    "sections": [
+      "서론(인사+작성시점+중요성+목적)",
+      "본문1 핵심 정리(3포인트)",
+      "본문2 득과 실 비교",
+      "본문3 활용 팁/주의사항(3가지)",
+      "결론(마지막 문장 고정)"
+    ],
+    "final_sentence": "미래를 위한 선택에 도움이 되기를 바랍니다."
+  },
+  "format": {
+    "markdown_headers": ["H1", "H2", "H3"],
+    "emphasis": "bold_only",
+    "hashtags_min": 15,
+    "hashtags_max": 20
+  },
+  "hot_issue": {
+    "enabled": true,
+    "categories": ["사회", "정치", "경제", "과학", "기술"],
+    "rss_feeds": {
+      "사회": "https://news.google.com/rss/search?q=%EC%82%AC%ED%9A%8C+%ED%95%AB%EC%9D%B4%EC%8A%88&hl=ko&gl=KR&ceid=KR:ko",
+      "정치": "https://news.google.com/rss/search?q=%EC%A0%95%EC%B9%98+%ED%95%AB%EC%9D%B4%EC%8A%88&hl=ko&gl=KR&ceid=KR:ko",
+      "경제": "https://news.google.com/rss/search?q=%EA%B2%BD%EC%A0%9C+%ED%95%AB%EC%9D%B4%EC%8A%88&hl=ko&gl=KR&ceid=KR:ko",
+      "과학": "https://news.google.com/rss/search?q=%EA%B3%BC%ED%95%99+%ED%95%AB%EC%9D%B4%EC%8A%88&hl=ko&gl=KR&ceid=KR:ko",
+      "기술": "https://news.google.com/rss/search?q=AI+tech+trend&hl=ko&gl=KR&ceid=KR:ko"
+    }
+  },
+  "issues_pool_fallback": [
+    "생성형 AI 검색 에이전트 도입 확산",
+    "개인정보 보호 규제와 AI 서비스 활용",
+    "온디바이스 AI와 클라우드 AI 선택",
+    "딥페이크 대응 기술과 사용자 검증 습관",
+    "AI 자동화 도구의 비용 최적화"
+  ]
+}
