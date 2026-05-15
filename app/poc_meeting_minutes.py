@@ -22,6 +22,18 @@ DB_PATH = Path("data/meeting_poc.db")
 RISK_KEYWORDS = ["지연", "리스크", "문제", "장애", "예산", "법무", "보안", "미정", "불가", "차질"]
 
 
+def get_secret(name: str) -> str | None:
+    v = os.getenv(name)
+    if v:
+        return v.strip()
+    try:
+        if name in st.secrets:
+            return str(st.secrets[name]).strip()
+    except Exception:
+        pass
+    return None
+
+
 @dataclass
 class SpeakerUtterance:
     speaker: str
@@ -92,18 +104,22 @@ def extract_wav(src: Path, workdir: Path) -> Path:
 
 
 def vito_auth(client_id: str, client_secret: str) -> str:
+    # VITO authenticate endpoint expects x-www-form-urlencoded payload.
     token_resp = requests.post(
         "https://openapi.vito.ai/v1/authenticate",
-        json={"client_id": client_id, "client_secret": client_secret},
+        headers={"Content-Type": "application/x-www-form-urlencoded", "accept": "application/json"},
+        data={"client_id": client_id, "client_secret": client_secret},
         timeout=30,
     )
-    token_resp.raise_for_status()
+    if token_resp.status_code >= 400:
+        body = token_resp.text[:500]
+        raise RuntimeError(f"VITO 인증 실패({token_resp.status_code}). client_id/client_secret 및 Streamlit Secrets 형식을 확인하세요. 응답: {body}")
     return token_resp.json()["access_token"]
 
 
 def vito_transcribe(audio_path: Path, poll_seconds: int = 2, max_wait_seconds: int = 900) -> dict[str, Any]:
-    client_id = os.getenv("VITO_CLIENT_ID")
-    client_secret = os.getenv("VITO_CLIENT_SECRET")
+    client_id = get_secret("VITO_CLIENT_ID")
+    client_secret = get_secret("VITO_CLIENT_SECRET")
     if not client_id or not client_secret:
         raise RuntimeError("VITO_CLIENT_ID / VITO_CLIENT_SECRET 환경변수가 필요합니다.")
 
@@ -165,7 +181,7 @@ def infer_speaker_map(utterances: list[SpeakerUtterance]) -> str:
 
 
 def gemini_summary(utterances: list[SpeakerUtterance], speaker_map_text: str) -> str:
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = get_secret("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY 환경변수가 필요합니다.")
     genai.configure(api_key=api_key)
@@ -210,6 +226,14 @@ def render_app() -> None:
 
     st.title("🧭 맥락추적형 회의록 정리 POC v2")
     st.caption("YouTube/MP4 입력 → WAV 추출 → VITO 화자분리 → Gemini 요약 → 히스토리 저장/조회")
+
+    with st.expander("환경변수 점검", expanded=False):
+        st.write({
+            "VITO_CLIENT_ID": bool(get_secret("VITO_CLIENT_ID")),
+            "VITO_CLIENT_SECRET": bool(get_secret("VITO_CLIENT_SECRET")),
+            "GEMINI_API_KEY": bool(get_secret("GEMINI_API_KEY")),
+        })
+        st.caption("Streamlit Cloud에서는 GitHub Secrets가 아니라 App Settings > Secrets에 등록해야 합니다.")
 
     with st.sidebar:
         st.header("저장된 회의록")
