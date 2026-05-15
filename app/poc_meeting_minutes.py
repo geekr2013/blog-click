@@ -2,6 +2,7 @@ import json
 import os
 import re
 import sqlite3
+import shutil
 import subprocess
 import tempfile
 import time
@@ -74,9 +75,15 @@ def download_youtube(url: str, workdir: Path) -> Path:
 
 
 def extract_wav(src: Path, workdir: Path) -> Path:
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if not ffmpeg_bin:
+        raise RuntimeError(
+            "ffmpeg 바이너리를 찾을 수 없습니다. Streamlit Cloud는 packages.txt에 `ffmpeg`를 추가하고 재배포하세요."
+        )
+
     out = workdir / "audio.wav"
     cmd = [
-        "ffmpeg", "-y", "-i", str(src), "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", str(out),
+        ffmpeg_bin, "-y", "-i", str(src), "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", str(out),
     ]
     code, _, err = run_cmd(cmd)
     if code != 0:
