@@ -38,4 +38,3 @@ streamlit run app/poc_meeting_minutes.py
 해당 웹페이지에서 YouTube URL/MP4 업로드 입력과 결과 출력이 가능합니다.
 
 ### 방법 B) 내부망/서버 배포
-- 동일 코드로 사내 VM 또는 클라우드 서버에 `streamlit run streamlit_app.py --server.port 8501` 형태로 올려서 웹페이지 제공 가능.
