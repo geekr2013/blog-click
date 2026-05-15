@@ -255,18 +255,69 @@ def gemini_summary(utterances: list[SpeakerUtterance], speaker_map_text: str) ->
         raise RuntimeError(f"Gemini 호출 실패(model={model_name}): {e}")
 
 
+def fallback_summary(utterances: list[SpeakerUtterance], speaker_map_text: str) -> str:
+    by_speaker: dict[str, list[str]] = {}
+    for u in utterances:
+        by_speaker.setdefault(u.speaker, []).append(u.text)
+
+    lines = ["## LLM 할당량 초과로 규칙기반 요약으로 대체되었습니다.", "", "### 화자별 요약"]
+    for spk, texts in by_speaker.items():
+        joined = " ".join(texts)
+        lines.append(f"- **{spk}**: {joined[:300]}")
+
+    lines += ["", "### 리스크 키워드", "- " + (", ".join(RISK_KEYWORDS))]
+
+    # speaker_map_text example: 화자-0:개발팀
+    dept_map = {}
+    for raw in speaker_map_text.splitlines():
+        if ":" in raw:
+            k, v = raw.split(":", 1)
+            dept_map[k.strip()] = v.strip()
+
+    dept_bucket: dict[str, list[str]] = {}
+    for u in utterances:
+        dept = dept_map.get(u.speaker, "미지정 부서")
+        dept_bucket.setdefault(dept, []).append(u.text)
+
+    lines.append("\n### 부서/주제별 요약")
+    for dept, texts in dept_bucket.items():
+        lines.append(f"- **{dept}**: {' '.join(texts)[:300]}")
+
+    lines += ["", "### 액션아이템(규칙기반 초안)"]
+    action_keywords = ["해주세요", "하겠습니다", "진행", "검토", "요청", "확인"]
+    idx = 1
+    for u in utterances:
+        if any(k in u.text for k in action_keywords):
+            lines.append(f"{idx}. 담당: {u.speaker} / 내용: {u.text[:120]} / 기한: 미정")
+            idx += 1
+            if idx > 10:
+                break
+    if idx == 1:
+        lines.append("1. 액션아이템 키워드가 자동 감지되지 않았습니다.")
+
+    return "\n".join(lines)
+
+
 def llm_summary(utterances: list[SpeakerUtterance], speaker_map_text: str) -> str:
-    provider = (get_secret("LLM_PROVIDER") or "gemini").lower()
+    provider = (get_secret("LLM_PROVIDER") or "rule").lower()
+    if provider == "rule":
+        return fallback_summary(utterances, speaker_map_text)
+
     if provider == "openai":
-        return openai_summary(utterances, speaker_map_text)
+        try:
+            return openai_summary(utterances, speaker_map_text)
+        except Exception as oe:
+            return fallback_summary(utterances, speaker_map_text) + f"\n\n> 참고: OpenAI 실패: {oe}"
 
     try:
         return gemini_summary(utterances, speaker_map_text)
     except Exception as ge:
-        # Gemini 할당량 초과/모델 이슈 시 OpenAI 키가 있으면 자동 폴백
         if get_secret("OPENAI_API_KEY"):
-            return openai_summary(utterances, speaker_map_text)
-        raise RuntimeError(f"Gemini 실패 후 대체 LLM 없음: {ge}")
+            try:
+                return openai_summary(utterances, speaker_map_text)
+            except Exception as oe:
+                return fallback_summary(utterances, speaker_map_text) + f"\n\n> 참고: Gemini 실패: {ge}\n> OpenAI 실패: {oe}"
+        return fallback_summary(utterances, speaker_map_text) + f"\n\n> 참고: Gemini 실패: {ge}"
 
 
 def save_meeting(record: MeetingRecord) -> int:
