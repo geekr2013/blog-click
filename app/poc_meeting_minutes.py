@@ -180,15 +180,55 @@ def infer_speaker_map(utterances: list[SpeakerUtterance]) -> str:
     return "\n".join([f"{s}: (부서명 입력 필요)" for s in speakers]) if speakers else ""
 
 
+
+
+def choose_gemini_model(preferred: str | None = None) -> str:
+    candidates = [preferred, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash-latest"]
+    candidates = [c for c in candidates if c]
+    try:
+        available = []
+        for m in genai.list_models():
+            name = getattr(m, "name", "")
+            methods = getattr(m, "supported_generation_methods", []) or []
+            if "generateContent" in methods and name.startswith("models/"):
+                available.append(name.replace("models/", ""))
+        for c in candidates:
+            if c in available:
+                return c
+        if available:
+            return available[0]
+    except Exception:
+        pass
+    return candidates[0]
+
+
+def render_structured_minutes(summary_text: str, utterances: list[SpeakerUtterance]) -> None:
+    by_speaker: dict[str, list[str]] = {}
+    for u in utterances:
+        by_speaker.setdefault(u.speaker, []).append(u.text)
+
+    st.subheader("화자별 발화 요약(원문 기반)")
+    for speaker, texts in by_speaker.items():
+        st.markdown(f"**{speaker}**")
+        st.write(" ".join(texts)[:700])
+
+    st.subheader("주제/부서별 정리(LLM 결과)")
+    st.markdown(summary_text)
+
 def gemini_summary(utterances: list[SpeakerUtterance], speaker_map_text: str) -> str:
     api_key = get_secret("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY 환경변수가 필요합니다.")
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    preferred = get_secret("GEMINI_MODEL")
+    model_name = choose_gemini_model(preferred)
+    model = genai.GenerativeModel(model_name)
     transcript = "\n".join([f"[{u.speaker} {u.start:.1f}-{u.end:.1f}] {u.text}" for u in utterances])
     prompt = f"""화자-부서 매핑:\n{speaker_map_text}\n\n회의 대화:\n{transcript}\n\n화자별 요약표, 액션아이템표, 리스크, 다음 확인질문 5개를 작성."""
-    return model.generate_content(prompt).text
+    try:
+        return model.generate_content(prompt).text
+    except Exception as e:
+        raise RuntimeError(f"Gemini 호출 실패(model={model_name}): {e}")
 
 
 def save_meeting(record: MeetingRecord) -> int:
@@ -284,7 +324,7 @@ def render_app() -> None:
                 risks = detect_risks(utterances)
                 st.dataframe([asdict(u) for u in utterances], use_container_width=True)
                 summary = gemini_summary(utterances, speaker_map)
-                st.markdown(summary)
+                render_structured_minutes(summary, utterances)
                 meeting_id = save_meeting(
                     MeetingRecord(
                         created_at=datetime.now(timezone.utc).isoformat(),
