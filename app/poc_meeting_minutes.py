@@ -215,6 +215,30 @@ def render_structured_minutes(summary_text: str, utterances: list[SpeakerUtteran
     st.subheader("주제/부서별 정리(LLM 결과)")
     st.markdown(summary_text)
 
+def openai_summary(utterances: list[SpeakerUtterance], speaker_map_text: str) -> str:
+    api_key = get_secret("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY 환경변수가 필요합니다.")
+
+    model_name = get_secret("OPENAI_MODEL") or "gpt-4.1-mini"
+    transcript = "\n".join([f"[{u.speaker} {u.start:.1f}-{u.end:.1f}] {u.text}" for u in utterances])
+    prompt = f"""화자-부서 매핑:\n{speaker_map_text}\n\n회의 대화:\n{transcript}\n\n반드시 한국어로, 화자별 요약표/부서(주제)별 요약표/액션아이템표/리스크를 작성."""
+
+    resp = requests.post(
+        "https://api.openai.com/v1/responses",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": model_name,
+            "input": prompt,
+        },
+        timeout=120,
+    )
+    if resp.status_code >= 400:
+        raise RuntimeError(f"OpenAI 호출 실패({resp.status_code}): {resp.text[:500]}")
+    data = resp.json()
+    return data.get("output_text") or "요약 생성에 실패했습니다."
+
+
 def gemini_summary(utterances: list[SpeakerUtterance], speaker_map_text: str) -> str:
     api_key = get_secret("GEMINI_API_KEY")
     if not api_key:
@@ -229,6 +253,20 @@ def gemini_summary(utterances: list[SpeakerUtterance], speaker_map_text: str) ->
         return model.generate_content(prompt).text
     except Exception as e:
         raise RuntimeError(f"Gemini 호출 실패(model={model_name}): {e}")
+
+
+def llm_summary(utterances: list[SpeakerUtterance], speaker_map_text: str) -> str:
+    provider = (get_secret("LLM_PROVIDER") or "gemini").lower()
+    if provider == "openai":
+        return openai_summary(utterances, speaker_map_text)
+
+    try:
+        return gemini_summary(utterances, speaker_map_text)
+    except Exception as ge:
+        # Gemini 할당량 초과/모델 이슈 시 OpenAI 키가 있으면 자동 폴백
+        if get_secret("OPENAI_API_KEY"):
+            return openai_summary(utterances, speaker_map_text)
+        raise RuntimeError(f"Gemini 실패 후 대체 LLM 없음: {ge}")
 
 
 def save_meeting(record: MeetingRecord) -> int:
@@ -272,6 +310,7 @@ def render_app() -> None:
             "VITO_CLIENT_ID": bool(get_secret("VITO_CLIENT_ID")),
             "VITO_CLIENT_SECRET": bool(get_secret("VITO_CLIENT_SECRET")),
             "GEMINI_API_KEY": bool(get_secret("GEMINI_API_KEY")),
+            "OPENAI_API_KEY": bool(get_secret("OPENAI_API_KEY")),
         })
         st.caption("Streamlit Cloud에서는 GitHub Secrets가 아니라 App Settings > Secrets에 등록해야 합니다.")
 
@@ -323,7 +362,7 @@ def render_app() -> None:
                     speaker_map = infer_speaker_map(utterances)
                 risks = detect_risks(utterances)
                 st.dataframe([asdict(u) for u in utterances], use_container_width=True)
-                summary = gemini_summary(utterances, speaker_map)
+                summary = llm_summary(utterances, speaker_map)
                 render_structured_minutes(summary, utterances)
                 meeting_id = save_meeting(
                     MeetingRecord(
