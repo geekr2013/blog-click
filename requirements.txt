@@ -1,6 +1,6 @@
-streamlit==1.45.1
-yt-dlp==2026.1.1
-ffmpeg-python==0.2.0
-requests==2.32.3
-python-dotenv==1.0.1
-google-generativeai==0.8.5
+streamlit>=1.33,<2
+yt-dlp>=2024.8.6
+ffmpeg-python>=0.2.0
+requests>=2.31,<3
+python-dotenv>=1.0,<2
+google-generativeai>=0.8.5,<1
