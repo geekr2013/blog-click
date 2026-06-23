@@ -43,7 +43,11 @@ def main():
             "categoryId": config["category_id"],
             "defaultLanguage": config["language"],
         },
-        "status": {"privacyStatus": config["privacy_status"], "selfDeclaredMadeForKids": False},
+        "status": {
+            "privacyStatus": config["privacy_status"],
+            "selfDeclaredMadeForKids": False,
+            "containsSyntheticMedia": True,
+        },
     }
     request = youtube.videos().insert(
         part="snippet,status", body=body,
