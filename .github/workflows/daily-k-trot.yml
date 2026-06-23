@@ -31,6 +31,9 @@ jobs:
     timeout-minutes: 30
     env:
       TZ: Asia/Seoul
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -58,13 +61,9 @@ jobs:
       - name: Upload to YouTube
         if: >-
           ${{ (github.event_name == 'schedule' || inputs.upload) &&
-              secrets.YOUTUBE_CLIENT_ID != '' &&
-              secrets.YOUTUBE_CLIENT_SECRET != '' &&
-              secrets.YOUTUBE_REFRESH_TOKEN != '' }}
-        env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+              env.YOUTUBE_CLIENT_ID != '' &&
+              env.YOUTUBE_CLIENT_SECRET != '' &&
+              env.YOUTUBE_REFRESH_TOKEN != '' }}
         run: python src/upload_youtube.py
 
       - name: Save duplicate-prevention history
