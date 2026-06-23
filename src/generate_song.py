@@ -87,7 +87,7 @@ def write_instrumental(path: Path, rng: random.Random):
 
 def make_identity(run_date: str):
     rng = random.Random(int(run_date.replace("-", "")))
-    title = f"{rng.choice(ADJECTIVES)} {rng.choice(NOUNS)}"
+    title = f"{rng.choice(ADJECTIVES)} {rng.choice(NOUNS)} {run_date.replace('-', '')}"
     place, memory = rng.choice(PLACES), rng.choice(MEMORIES)
     lyrics = [
         f"Tonight I ride through {place}", f"Still holding {memory}",
@@ -131,7 +131,7 @@ def make_cover(path: Path, title: str, artist: str, run_date: str):
     draw.ellipse((825, 155, 1085, 415), fill=(245, 90, 190), outline=(255, 225, 80), width=10)
     draw.ellipse((875, 205, 1035, 365), fill=(42, 8, 68))
     draw.text((115, 135), "ORIGINAL NEWTRO K-TROT", font=font(32, True), fill=(0, 255, 220))
-    draw.text((110, 235), title.upper(), font=font(72, True), fill=(255, 235, 90))
+    draw.text((110, 235), title.upper(), font=font(56, True), fill=(255, 235, 90))
     draw.text((115, 355), artist, font=font(46), fill=(255, 255, 255))
     draw.text((115, 540), f"DAILY SINGLE  •  {run_date}", font=font(28), fill=(240, 170, 255))
     image.save(path, quality=95)
