@@ -56,7 +56,11 @@ jobs:
           retention-days: 7
 
       - name: Upload to YouTube
-        if: ${{ github.event_name == 'schedule' || inputs.upload }}
+        if: >-
+          ${{ (github.event_name == 'schedule' || inputs.upload) &&
+              secrets.YOUTUBE_CLIENT_ID != '' &&
+              secrets.YOUTUBE_CLIENT_SECRET != '' &&
+              secrets.YOUTUBE_REFRESH_TOKEN != '' }}
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
