@@ -1,6 +1,13 @@
 name: Daily original K-trot upload
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "config/**"
+      - "requirements.txt"
+      - ".github/workflows/daily-k-trot.yml"
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
