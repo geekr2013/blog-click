@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import io
 import json
-import random
 import subprocess
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 SONG_SECONDS = 180
@@ -23,28 +24,33 @@ def font(size: int, bold: bool = False):
     return ImageFont.load_default()
 
 
-def make_cover(path: Path, title: str, artist: str, run_date: str):
-    rng = random.Random(int(run_date.replace("-", "")))
-    palettes = [
-        ((25, 5, 58), (0, 255, 220), (255, 235, 85)),
-        ((52, 7, 25), (255, 135, 40), (255, 225, 120)),
-        ((5, 32, 60), (80, 210, 255), (255, 105, 190)),
-        ((38, 12, 62), (210, 120, 255), (80, 255, 175)),
-    ]
-    background, neon, headline = rng.choice(palettes)
-    image = Image.new("RGB", (1280, 720), background)
+def make_cover(path: Path, title: str, artist: str):
+    encoded = (ROOT / "assets/mina-neon-stage.jpg.b64").read_text(encoding="ascii")
+    portrait = Image.open(io.BytesIO(base64.b64decode(encoded))).convert("RGB")
+    image = portrait.resize((1280, 720), Image.Resampling.LANCZOS)
+    image = ImageEnhance.Color(image).enhance(1.15)
+
+    shade = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    shade_draw = ImageDraw.Draw(shade)
+    for x in range(780):
+        alpha = max(0, 205 - int(x * 0.20))
+        shade_draw.line((x, 0, x, 720), fill=(12, 0, 28, alpha))
+    image = Image.alpha_composite(image.convert("RGBA"), shade)
     draw = ImageDraw.Draw(image)
-    for y in range(720):
-        color = tuple(min(255, value + y // divisor) for value, divisor in zip(background, (15, 45, 10)))
-        draw.line((0, y, 1280, y), fill=color)
-    draw.rounded_rectangle((60, 60, 1220, 660), radius=42, outline=neon, width=8)
-    draw.ellipse((865, 145, 1115, 395), fill=(240, 75, 185), outline=(255, 220, 75), width=12)
-    draw.ellipse((920, 200, 1060, 340), fill=(36, 5, 65))
-    draw.text((105, 130), "ORIGINAL K-NEWTRO TROT", font=font(34, True), fill=neon)
-    draw.text((100, 235), title, font=font(60, True), fill=headline)
-    draw.text((105, 360), artist, font=font(46), fill="white")
-    draw.text((105, 555), f"NEW SINGLE  •  {run_date}", font=font(28), fill=(240, 175, 255))
-    image.save(path, quality=95)
+
+    draw.rounded_rectangle((55, 48, 385, 115), radius=18, fill=(255, 232, 0, 245), outline=(255, 40, 145, 255), width=5)
+    draw.text((84, 58), "B급 감성 트롯", font=font(38, True), fill=(30, 0, 36), stroke_width=1)
+
+    title_font = font(78 if len(title) <= 8 else 66, True)
+    draw.text((62, 178), title, font=title_font, fill=(255, 255, 255), stroke_width=8, stroke_fill=(135, 0, 83))
+
+    korean_artist = artist.split(" Mina")[0]
+    draw.text((65, 340), korean_artist, font=font(62, True), fill=(255, 225, 35), stroke_width=7, stroke_fill=(90, 0, 55))
+    draw.text((68, 435), "웃기게 진심인 8090 뉴트로", font=font(31, True), fill=(255, 255, 255), stroke_width=4, stroke_fill=(20, 0, 35))
+
+    draw.rounded_rectangle((55, 590, 535, 670), radius=22, fill=(235, 0, 115, 225), outline=(255, 230, 40, 255), width=5)
+    draw.text((82, 605), "한 번 들으면 계속 쿵짝!", font=font(33, True), fill="white", stroke_width=2, stroke_fill=(75, 0, 45))
+    image.convert("RGB").save(path, quality=95)
 
 
 def main():
@@ -57,7 +63,7 @@ def main():
     build = ROOT / "build"
     build.mkdir(exist_ok=True)
     cover, mastered, video = build / "cover.png", build / "song.m4a", build / "video.mp4"
-    make_cover(cover, request["title"], config["artist_name"], request["date"])
+    make_cover(cover, request["title"], config["artist_name"])
     subprocess.run([
         "ffmpeg", "-y", "-i", args.audio, "-t", str(SONG_SECONDS),
         "-af", "highpass=f=28,lowpass=f=18000,loudnorm=I=-14:TP=-1.2:LRA=9,alimiter=limit=0.95",
