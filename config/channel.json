@@ -1,17 +1,21 @@
 {
   "artist_name": "미나 네온 Mina Neon",
-  "persona": "1989년 서울에서 온 가상의 뉴트로 트롯 가수 미나 네온입니다. 모든 곡과 가사는 새롭게 만든 오리지널 작품입니다.",
-  "series_name": "미나 네온의 뉴트로 트롯",
+  "persona": "1989년 서울의 밤거리 감성을 노래하는 가상 뉴트로 트롯 가수 미나 네온입니다. 모든 곡과 가사는 새롭게 만든 오리지널 작품입니다.",
+  "series_name": "미나 네온의 8090 뉴트로 트롯",
   "language": "ko",
-  "privacy_status": "private",
+  "privacy_status": "public",
   "category_id": "10",
   "tags": [
+    "트로트",
+    "신나는 트로트",
+    "8090 트로트",
+    "뉴트로",
+    "레트로 음악",
+    "한국 트로트",
+    "K-Trot",
+    "Korean music",
     "original music",
-    "k-trot",
-    "retro",
-    "newtro",
-    "AI character",
-    "한국 트로트"
+    "미나 네온"
   ],
-  "disclosure": "Original AI-assisted music and fictional synthetic singer. No real singer voice is cloned."
+  "disclosure": "AI의 도움으로 제작한 오리지널 음악과 가상의 가수입니다. 실제 가수의 음성을 복제하지 않았습니다."
 }
