@@ -14,7 +14,8 @@ MEMORIES = ["빨간 우산", "낡은 카세트", "빛바랜 사진", "당신의 
 
 def build_request(run_date: str) -> dict:
     rng = random.Random(int(run_date.replace("-", "")))
-    title = f"{rng.choice(TITLES)} {run_date.replace('-', '')}"
+    song_title = rng.choice(TITLES)
+    display_title = f"{song_title} · {run_date}"
     place, memory = rng.choice(PLACES), rng.choice(MEMORIES)
     lyrics = f"""[Intro]
 아 아, 오늘도 두 박자
@@ -30,7 +31,7 @@ def build_request(run_date: str) -> dict:
 못다 한 이 노래를 전해야 하니까
 
 [Chorus]
-{title}, 내 마음을 받아줘
+{song_title}, 내 마음을 받아줘
 쿵짝 쿵짝 가슴이 먼저 당신을 찾아가
 울어도 좋아 웃어도 좋아
 오늘 밤 이 리듬에 우리 다시 사랑해
@@ -46,7 +47,7 @@ def build_request(run_date: str) -> dict:
 우리의 젊은 날이 다시 춤을 추니까
 
 [Chorus]
-{title}, 내 마음을 받아줘
+{song_title}, 내 마음을 받아줘
 쿵짝 쿵짝 가슴이 먼저 당신을 찾아가
 울어도 좋아 웃어도 좋아
 오늘 밤 이 리듬에 우리 다시 사랑해
@@ -58,7 +59,7 @@ def build_request(run_date: str) -> dict:
 청춘은 지금부터야
 
 [Final Chorus]
-{title}, 세상 끝까지 가자
+{song_title}, 세상 끝까지 가자
 쿵짝 쿵짝 뜨거운 노래 멈추지 않을 거야
 울어도 좋아 웃어도 좋아
 오늘 밤 이 리듬에 영원히 함께해
@@ -69,12 +70,13 @@ def build_request(run_date: str) -> dict:
 """
     return {
         "date": run_date,
-        "title": title,
+        "title": display_title,
+        "song_title": song_title,
         "caption": "High-quality Korean newtro trot song with a natural expressive adult female singer, warm human vocal timbre, emotional vibrato, clear Korean diction, tasteful vocal bends, 1980s and 1990s Korean trot arrangement, 2/4 rhythm, acoustic drums, electric bass, brass section, accordion, clean electric guitar, analog synth, dynamic verse and huge catchy chorus. Professional studio recording and mastering, organic performance, no robotic voice, no spoken vocals.",
         "negative_prompt": "robotic voice, text to speech, vocoder, metallic vocal, flat emotion, child voice, poor pronunciation, distorted vocal, muddy mix, clipping, demo quality",
         "lyrics": lyrics,
         "language": "ko",
-        "duration": 210,
+        "duration": 180,
         "bpm": 118,
         "keyscale": "A minor",
         "timesignature": "2",
