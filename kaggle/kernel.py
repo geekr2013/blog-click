@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import base64
+import shutil
 import subprocess
 import sys
 import traceback
+import urllib.request
+import zipfile
 from pathlib import Path
 
 ROOT = Path("/kaggle/working")
@@ -14,7 +17,16 @@ REQUEST_B64 = "__REQUEST_JSON_BASE64__"
 
 def run(command: list[str], cwd: Path | None = None):
     print("+", " ".join(command), flush=True)
-    subprocess.run(command, cwd=cwd, check=True)
+    result = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
+    if result.stdout:
+        print(result.stdout, flush=True)
+    if result.stderr:
+        print(result.stderr, flush=True)
+    if result.returncode:
+        raise RuntimeError(
+            f"Command failed ({result.returncode}): {' '.join(command)}\n"
+            f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
 
 
 def main():
@@ -22,7 +34,20 @@ def main():
     request_path = ROOT / "request.json"
     request_path.write_bytes(base64.b64decode(REQUEST_B64))
     if not SOURCE.exists():
-        run(["git", "clone", "--depth", "1", "https://github.com/ace-step/ACE-Step-1.5.git", str(SOURCE)])
+        try:
+            run(["git", "clone", "--depth", "1", "https://github.com/ace-step/ACE-Step-1.5.git", str(SOURCE)])
+        except Exception:
+            archive = ROOT / "ace-step.zip"
+            urllib.request.urlretrieve(
+                "https://codeload.github.com/ace-step/ACE-Step-1.5/zip/refs/heads/main",
+                archive,
+            )
+            with zipfile.ZipFile(archive) as zipped:
+                zipped.extractall(ROOT)
+            extracted = ROOT / "ACE-Step-1.5-main"
+            if not extracted.exists():
+                raise RuntimeError("ACE-Step archive downloaded but could not be extracted")
+            shutil.move(str(extracted), str(SOURCE))
     run([sys.executable, "-m", "pip", "install", "-q", "uv"])
     run(["uv", "sync", "--no-dev"], cwd=SOURCE)
     generator = ROOT / "generate.py"
