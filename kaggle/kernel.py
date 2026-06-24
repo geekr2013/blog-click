@@ -9,8 +9,6 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-# Kaggle saves everything under /kaggle/working as output. Keep programs and
-# dependencies in /tmp so only the final song files are persisted.
 TEMP = Path("/tmp/neon-k-trot")
 SOURCE = TEMP / "ACE-Step-1.5"
 OUTPUT = Path("/kaggle/working/output")
@@ -29,6 +27,21 @@ def run(command: list[str], cwd: Path | None = None):
             f"Command failed ({result.returncode}): {' '.join(command)}\n"
             f"STDOUT:\n{result.stdout[-12000:]}\nSTDERR:\n{result.stderr[-12000:]}"
         )
+
+
+def force_t4_float32():
+    target = SOURCE / "acestep/core/generation/handler/init_service_orchestrator.py"
+    text = target.read_text(encoding="utf-8")
+    old = "self.dtype = torch.float16"
+    if old not in text:
+        raise RuntimeError("Could not apply Tesla T4 float32 stability patch")
+    text = text.replace(old, "self.dtype = torch.float32", 1)
+    text = text.replace(
+        "using float16 instead of bfloat16.",
+        "using float32 stability mode instead of float16.",
+        1,
+    )
+    target.write_text(text, encoding="utf-8")
 
 
 def main():
@@ -50,16 +63,19 @@ def main():
         if not extracted.exists():
             raise RuntimeError("ACE-Step archive downloaded but could not be extracted")
         shutil.move(str(extracted), str(SOURCE))
+    force_t4_float32()
     run([sys.executable, "-m", "pip", "install", "-q", "uv"])
     run(["uv", "sync", "--no-dev"], cwd=SOURCE)
     generator = TEMP / "generate.py"
     generator.write_text(
         '''
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
 
+os.environ["ACESTEP_DTYPE"] = "float32"
 SOURCE = Path("/tmp/neon-k-trot/ACE-Step-1.5")
 OUTPUT = Path("/kaggle/working/output")
 REQUEST = Path("/tmp/neon-k-trot/request.json")
@@ -80,7 +96,7 @@ params = GenerationParams(
     keyscale=request["keyscale"],
     timesignature=request["timesignature"],
     duration=request["duration"],
-    inference_steps=12,
+    inference_steps=8,
     shift=3.0,
     seed=request["seed"],
     thinking=False,
@@ -88,6 +104,7 @@ params = GenerationParams(
     use_cot_caption=False,
     use_cot_language=False,
     lm_negative_prompt=request["negative_prompt"],
+    dcw_enabled=False,
 )
 config = GenerationConfig(batch_size=1, use_random_seed=False, seeds=[request["seed"]], audio_format="flac")
 result = generate_music(handler, None, params, config, save_dir=str(OUTPUT))
