@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - ".quality-test-trigger"
+      - ".quality-release-trigger"
   schedule:
     - cron: "0 0 * * 2,5"
   workflow_dispatch:
@@ -109,7 +110,7 @@ jobs:
           fi
           test "$(find kaggle-output -type f | wc -l)" -le 5
 
-      - name: Package mastered YouTube video
+      - name: Package exactly three-minute YouTube video
         run: |
           AUDIO="$(find kaggle-output -name quality_song.flac -print -quit)"
           REQUEST="$(find kaggle-output -name request.json -print -quit)"
@@ -127,7 +128,8 @@ jobs:
 
       - name: Upload to YouTube
         if: >-
-          ${{ (github.event_name == 'schedule' || inputs.upload) &&
+          ${{ (github.event_name == 'schedule' || inputs.upload ||
+              (github.event_name == 'push' && contains(github.event.head_commit.message, '[publish]'))) &&
               env.YOUTUBE_CLIENT_ID != '' &&
               env.YOUTUBE_CLIENT_SECRET != '' &&
               env.YOUTUBE_REFRESH_TOKEN != '' }}
