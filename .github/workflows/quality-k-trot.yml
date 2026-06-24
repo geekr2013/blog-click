@@ -1,13 +1,6 @@
 name: Quality Korean K-trot via free GPU
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "kaggle/**"
-      - "src/prepare_quality_song.py"
-      - "src/package_quality_song.py"
-      - ".github/workflows/quality-k-trot.yml"
   schedule:
     - cron: "0 0 * * 2,5"
   workflow_dispatch:
@@ -23,12 +16,12 @@ permissions:
 
 concurrency:
   group: quality-k-trot
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   generate-and-upload:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     env:
       TZ: Asia/Seoul
       KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
@@ -48,11 +41,11 @@ jobs:
           test -n "$KAGGLE_USERNAME"
           test -n "$KAGGLE_API_TOKEN"
 
-      - name: Install orchestration tools
+      - name: Install lightweight orchestration tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-noto-cjk
-          pip install -r requirements.txt kaggle
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-cjk
+          pip install -q -r requirements.txt kaggle
 
       - name: Prepare original Korean song
         run: python src/prepare_quality_song.py --date "$(date +%F)"
@@ -91,21 +84,16 @@ jobs:
 
       - name: Wait for high-quality generation
         run: |
-          for i in $(seq 1 80); do
+          for i in $(seq 1 45); do
             STATUS="$(kaggle kernels status "$KAGGLE_USERNAME/neon-k-trot-generator")"
             echo "$STATUS"
             if echo "$STATUS" | grep -qi complete; then exit 0; fi
-            if echo "$STATUS" | grep -Eqi 'error|failed|cancel'; then
-              mkdir -p kaggle-output
-              kaggle kernels output "$KAGGLE_USERNAME/neon-k-trot-generator" -p kaggle-output -o || true
-              find kaggle-output -name ERROR.txt -exec cat {} \; || true
-              exit 1
-            fi
+            if echo "$STATUS" | grep -Eqi 'error|failed|cancel'; then exit 1; fi
             sleep 60
           done
           exit 1
 
-      - name: Download generated song
+      - name: Download only final song files
         run: |
           mkdir -p kaggle-output
           kaggle kernels output "$KAGGLE_USERNAME/neon-k-trot-generator" -p kaggle-output -o
@@ -114,6 +102,7 @@ jobs:
             cat "$(find kaggle-output -name ERROR.txt -print -quit)"
             exit 1
           fi
+          test "$(find kaggle-output -type f | wc -l)" -le 5
 
       - name: Package mastered YouTube video
         run: |
@@ -123,12 +112,13 @@ jobs:
           test -n "$REQUEST"
           python src/package_quality_song.py --audio "$AUDIO" --request "$REQUEST"
 
-      - name: Save review copy for 3 days
+      - name: Save review copy for 1 day
         uses: actions/upload-artifact@v4
         with:
           name: quality-k-trot-${{ github.run_number }}
-          path: build/
-          retention-days: 3
+          path: build/video.mp4
+          retention-days: 1
+          compression-level: 0
 
       - name: Upload to YouTube
         if: >-
@@ -138,8 +128,7 @@ jobs:
               env.YOUTUBE_REFRESH_TOKEN != '' }}
         run: python src/upload_youtube.py
 
-      - name: Save history
-        if: ${{ github.event_name != 'push' }}
+      - name: Save compact history
         run: |
           python - <<'PY'
           import json
@@ -149,6 +138,7 @@ jobs:
           request = json.loads(next(Path("kaggle-output").rglob("request.json")).read_text(encoding="utf-8"))
           if not any(song["date"] == request["date"] for song in catalog["songs"]):
               catalog["songs"].append({"date": request["date"], "title": request["title"]})
+              catalog["songs"] = catalog["songs"][-500:]
               catalog_path.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           PY
           git config user.name "github-actions[bot]"
