@@ -1,6 +1,13 @@
 name: Quality Korean K-trot via free GPU
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "kaggle/**"
+      - "src/prepare_quality_song.py"
+      - "src/package_quality_song.py"
+      - ".github/workflows/quality-k-trot.yml"
   schedule:
     - cron: "0 0 * * 2,5"
   workflow_dispatch:
@@ -132,6 +139,7 @@ jobs:
         run: python src/upload_youtube.py
 
       - name: Save history
+        if: ${{ github.event_name != 'push' }}
         run: |
           python - <<'PY'
           import json
