@@ -102,6 +102,13 @@ jobs:
           test -n "$REQUEST"
           python src/package_quality_song.py --audio "$AUDIO" --request "$REQUEST"
 
+      - name: Save review copy for 3 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-k-trot-${{ github.run_number }}
+          path: build/
+          retention-days: 3
+
       - name: Upload to YouTube
         if: >-
           ${{ (github.event_name == 'schedule' || inputs.upload) &&
