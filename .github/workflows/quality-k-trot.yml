@@ -1,0 +1,129 @@
+name: Quality Korean K-trot via free GPU
+
+on:
+  schedule:
+    - cron: "0 0 * * 2,5"
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Upload to YouTube"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: quality-k-trot
+  cancel-in-progress: false
+
+jobs:
+  generate-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TZ: Asia/Seoul
+      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Require free GPU account
+        run: |
+          test -n "$KAGGLE_USERNAME"
+          test -n "$KAGGLE_KEY"
+
+      - name: Install orchestration tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-cjk
+          pip install -r requirements.txt kaggle
+
+      - name: Prepare original Korean song
+        run: python src/prepare_quality_song.py --date "$(date +%F)"
+
+      - name: Create private Kaggle GPU job
+        run: |
+          mkdir -p .kaggle-kernel
+          cp kaggle/kernel.py .kaggle-kernel/kernel.py
+          cp kaggle/request.json .kaggle-kernel/request.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          username = os.environ["KAGGLE_USERNAME"]
+          metadata = {
+              "id": f"{username}/neon-k-trot-generator",
+              "title": "Neon K-Trot Generator",
+              "code_file": "kernel.py",
+              "language": "python",
+              "kernel_type": "script",
+              "is_private": True,
+              "enable_gpu": True,
+              "enable_internet": True,
+              "dataset_sources": [],
+              "competition_sources": [],
+              "kernel_sources": []
+          }
+          Path(".kaggle-kernel/kernel-metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+          PY
+          kaggle kernels push -p .kaggle-kernel --accelerator NvidiaTeslaT4
+
+      - name: Wait for high-quality generation
+        run: |
+          for i in $(seq 1 80); do
+            STATUS="$(kaggle kernels status "$KAGGLE_USERNAME/neon-k-trot-generator")"
+            echo "$STATUS"
+            if echo "$STATUS" | grep -qi complete; then exit 0; fi
+            if echo "$STATUS" | grep -Eqi 'error|failed|cancel'; then exit 1; fi
+            sleep 60
+          done
+          exit 1
+
+      - name: Download generated song
+        run: |
+          mkdir -p kaggle-output
+          kaggle kernels output "$KAGGLE_USERNAME/neon-k-trot-generator" -p kaggle-output -o
+          find kaggle-output -maxdepth 3 -type f
+
+      - name: Package mastered YouTube video
+        run: |
+          AUDIO="$(find kaggle-output -name quality_song.flac -print -quit)"
+          REQUEST="$(find kaggle-output -name request.json -print -quit)"
+          test -n "$AUDIO"
+          test -n "$REQUEST"
+          python src/package_quality_song.py --audio "$AUDIO" --request "$REQUEST"
+
+      - name: Upload to YouTube
+        if: >-
+          ${{ (github.event_name == 'schedule' || inputs.upload) &&
+              env.YOUTUBE_CLIENT_ID != '' &&
+              env.YOUTUBE_CLIENT_SECRET != '' &&
+              env.YOUTUBE_REFRESH_TOKEN != '' }}
+        run: python src/upload_youtube.py
+
+      - name: Save history
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          catalog_path = Path("catalog.json")
+          catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+          request = json.loads(next(Path("kaggle-output").rglob("request.json")).read_text(encoding="utf-8"))
+          if not any(song["date"] == request["date"] for song in catalog["songs"]):
+              catalog["songs"].append({"date": request["date"], "title": request["title"]})
+              catalog_path.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog.json
+          git diff --cached --quiet || git commit -m "Record quality K-trot release"
+          git push
