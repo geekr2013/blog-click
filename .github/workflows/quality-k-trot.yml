@@ -136,7 +136,7 @@ jobs:
           catalog_path = Path("catalog.json")
           catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
           request = json.loads(next(Path("kaggle-output").rglob("request.json")).read_text(encoding="utf-8"))
-          if not any(song["date"] == request["date"] for song in catalog["songs"]):
+          if not any(song["title"] == request["title"] for song in catalog["songs"]):
               catalog["songs"].append({"date": request["date"], "title": request["title"]})
               catalog["songs"] = catalog["songs"][-500:]
               catalog_path.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
