@@ -2,4 +2,6 @@ build/
 *.wav
 *.mp4
 *.png
+!assets/backgrounds/
+!assets/backgrounds/*.jpg
 __pycache__/

@@ -1,0 +1,47 @@
+name: Refresh existing YouTube thumbnail
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "YouTube video ID"
+        required: true
+        type: string
+      title:
+        description: "Song title"
+        required: true
+        type: string
+      hook:
+        description: "Short thumbnail hook"
+        required: true
+        type: string
+      release_date:
+        description: "Release date (YYYY-MM-DD)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -q -r requirements.txt
+      - name: Replace thumbnail without uploading a duplicate video
+        run: >-
+          python src/refresh_youtube_thumbnail.py
+          --video-id "${{ inputs.video_id }}"
+          --title "${{ inputs.title }}"
+          --hook "${{ inputs.hook }}"
+          --date "${{ inputs.release_date }}"

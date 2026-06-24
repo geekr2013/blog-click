@@ -31,20 +31,26 @@ def main():
     )
     youtube = build("youtube", "v3", credentials=credentials, cache_discovery=False)
     description = "\n".join([
-        "#B급감성 #트로트 #뉴트로", "",
+        "#트로트 #B급감성 #뉴트로", "",
         f"🎤 {metadata['title']} — {metadata['artist']}",
-        "웃기게 시작했지만 노래에는 진심인 8090 B급 감성 뉴트로 트롯입니다.",
-        "복고 무대, 중독성 있는 쿵짝 리듬, 미나 네온의 유쾌한 한 곡을 즐겨주세요.", "",
+        f"⚡ {metadata['hook']}",
+        f"웃기게 시작했지만 노래에는 진심인 {metadata['mood']}입니다.",
+        "고화질 복고 무대와 중독성 있는 쿵짝 리듬, 미나 네온의 새로운 오리지널 곡을 즐겨주세요.", "",
         config["persona"], "",
         "🎵 가사", *metadata["lyrics"], "",
         f"시리즈: {config['series_name']}",
-        "재미있게 들으셨다면 구독과 좋아요, 댓글로 다음 무대를 응원해 주세요.", "",
+        "💬 가장 중독적인 한 소절을 댓글로 남겨주세요.",
+        "재미있게 들으셨다면 구독과 좋아요로 다음 무대를 응원해 주세요.", "",
         config["disclosure"],
     ])
-    tags = list(dict.fromkeys(["B급 감성 트롯", "B급 트로트", "코믹 트로트", "8090 감성"] + config["tags"]))
+    tags = list(dict.fromkeys([
+        metadata["title"], metadata["artist"], metadata["mood"],
+        "B급 감성 트롯", "B급 트로트", "코믹 트로트", "8090 감성",
+        "신곡 트로트", "트로트 신곡", "중독성 있는 노래", "뉴트로 음악",
+    ] + config["tags"]))
     body = {
         "snippet": {
-            "title": f"[B급 감성 트롯] {metadata['title']} | {metadata['artist']}",
+            "title": f"[B급 감성 트롯] {metadata['title']}｜{metadata['hook']}｜{metadata['artist']}",
             "description": description,
             "tags": tags,
             "categoryId": config["category_id"],
