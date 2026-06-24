@@ -37,7 +37,11 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install -q -r requirements.txt
+      - name: Install Korean fonts and Python tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk
+          pip install -q -r requirements.txt
       - name: Replace thumbnail without uploading a duplicate video
         run: >-
           python src/refresh_youtube_thumbnail.py
