@@ -9,9 +9,11 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-ROOT = Path("/kaggle/working")
-SOURCE = ROOT / "ACE-Step-1.5"
-OUTPUT = ROOT / "output"
+# Kaggle saves everything under /kaggle/working as output. Keep programs and
+# dependencies in /tmp so only the final song files are persisted.
+TEMP = Path("/tmp/neon-k-trot")
+SOURCE = TEMP / "ACE-Step-1.5"
+OUTPUT = Path("/kaggle/working/output")
 REQUEST_B64 = "__REQUEST_JSON_BASE64__"
 
 
@@ -19,38 +21,38 @@ def run(command: list[str], cwd: Path | None = None):
     print("+", " ".join(command), flush=True)
     result = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
     if result.stdout:
-        print(result.stdout, flush=True)
+        print(result.stdout[-12000:], flush=True)
     if result.stderr:
-        print(result.stderr, flush=True)
+        print(result.stderr[-12000:], flush=True)
     if result.returncode:
         raise RuntimeError(
             f"Command failed ({result.returncode}): {' '.join(command)}\n"
-            f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+            f"STDOUT:\n{result.stdout[-12000:]}\nSTDERR:\n{result.stderr[-12000:]}"
         )
 
 
 def main():
-    OUTPUT.mkdir(exist_ok=True)
-    request_path = ROOT / "request.json"
+    TEMP.mkdir(parents=True, exist_ok=True)
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    request_path = TEMP / "request.json"
     request_path.write_bytes(base64.b64decode(REQUEST_B64))
-    if not SOURCE.exists():
-        try:
-            run(["git", "clone", "--depth", "1", "https://github.com/ace-step/ACE-Step-1.5.git", str(SOURCE)])
-        except Exception:
-            archive = ROOT / "ace-step.zip"
-            urllib.request.urlretrieve(
-                "https://codeload.github.com/ace-step/ACE-Step-1.5/zip/refs/heads/main",
-                archive,
-            )
-            with zipfile.ZipFile(archive) as zipped:
-                zipped.extractall(ROOT)
-            extracted = ROOT / "ACE-Step-1.5-main"
-            if not extracted.exists():
-                raise RuntimeError("ACE-Step archive downloaded but could not be extracted")
-            shutil.move(str(extracted), str(SOURCE))
+    try:
+        run(["git", "clone", "--depth", "1", "https://github.com/ace-step/ACE-Step-1.5.git", str(SOURCE)])
+    except Exception:
+        archive = TEMP / "ace-step.zip"
+        urllib.request.urlretrieve(
+            "https://codeload.github.com/ace-step/ACE-Step-1.5/zip/refs/heads/main",
+            archive,
+        )
+        with zipfile.ZipFile(archive) as zipped:
+            zipped.extractall(TEMP)
+        extracted = TEMP / "ACE-Step-1.5-main"
+        if not extracted.exists():
+            raise RuntimeError("ACE-Step archive downloaded but could not be extracted")
+        shutil.move(str(extracted), str(SOURCE))
     run([sys.executable, "-m", "pip", "install", "-q", "uv"])
     run(["uv", "sync", "--no-dev"], cwd=SOURCE)
-    generator = ROOT / "generate.py"
+    generator = TEMP / "generate.py"
     generator.write_text(
         '''
 import json
@@ -58,9 +60,9 @@ import shutil
 import sys
 from pathlib import Path
 
-SOURCE = Path("/kaggle/working/ACE-Step-1.5")
+SOURCE = Path("/tmp/neon-k-trot/ACE-Step-1.5")
 OUTPUT = Path("/kaggle/working/output")
-REQUEST = Path("/kaggle/working/request.json")
+REQUEST = Path("/tmp/neon-k-trot/request.json")
 sys.path.insert(0, str(SOURCE))
 
 from acestep.handler import AceStepHandler
@@ -92,9 +94,17 @@ result = generate_music(handler, None, params, config, save_dir=str(OUTPUT))
 if not result.success or not result.audios:
     raise RuntimeError(result.error or "ACE-Step did not return audio")
 source_audio = Path(result.audios[0]["path"])
-shutil.copy2(source_audio, OUTPUT / "quality_song.flac")
+final_audio = OUTPUT / "quality_song.flac"
+if source_audio.resolve() != final_audio.resolve():
+    shutil.copy2(source_audio, final_audio)
 shutil.copy2(REQUEST, OUTPUT / "request.json")
-print(OUTPUT / "quality_song.flac")
+for item in OUTPUT.iterdir():
+    if item.name not in {"quality_song.flac", "request.json"}:
+        if item.is_dir():
+            shutil.rmtree(item, ignore_errors=True)
+        else:
+            item.unlink(missing_ok=True)
+print(final_audio)
 ''',
         encoding="utf-8",
     )
@@ -104,7 +114,7 @@ print(OUTPUT / "quality_song.flac")
 try:
     main()
 except Exception:
-    OUTPUT.mkdir(exist_ok=True)
+    OUTPUT.mkdir(parents=True, exist_ok=True)
     error = traceback.format_exc()
     (OUTPUT / "ERROR.txt").write_text(error, encoding="utf-8")
     print(error, flush=True)
