@@ -9,6 +9,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
+SONG_SECONDS = 180
 
 
 def font(size: int, bold: bool = False):
@@ -58,21 +59,21 @@ def main():
     cover, mastered, video = build / "cover.png", build / "song.m4a", build / "video.mp4"
     make_cover(cover, request["title"], config["artist_name"], request["date"])
     subprocess.run([
-        "ffmpeg", "-y", "-i", args.audio,
+        "ffmpeg", "-y", "-i", args.audio, "-t", str(SONG_SECONDS),
         "-af", "highpass=f=28,lowpass=f=18000,loudnorm=I=-14:TP=-1.2:LRA=9,alimiter=limit=0.95",
         "-c:a", "aac", "-b:a", "320k", str(mastered),
     ], check=True)
     subprocess.run([
-        "ffmpeg", "-y", "-loop", "1", "-i", str(cover), "-i", str(mastered),
-        "-filter_complex",
-        "[0:v]scale=1280:720,fps=24[bg];"
-        "[1:a]asplit=2[audio][visual];"
-        "[visual]showwaves=s=1080x130:mode=cline:rate=24:colors=0x00ffdc@0.85,format=rgba[wave];"
-        "[bg][wave]overlay=(W-w)/2:H-h-45[v]",
-        "-map", "[v]", "-map", "[audio]", "-c:v", "libx264", "-preset", "veryfast",
-        "-tune", "stillimage", "-crf", "22", "-r", "24",
-        "-c:a", "aac", "-b:a", "320k", "-pix_fmt", "yuv420p", "-shortest", "-movflags", "+faststart", str(video),
+        "ffmpeg", "-y", "-loop", "1", "-framerate", "1", "-i", str(cover), "-i", str(mastered),
+        "-map", "0:v:0", "-map", "1:a:0", "-t", str(SONG_SECONDS),
+        "-c:v", "libx264", "-preset", "ultrafast", "-tune", "stillimage", "-crf", "20", "-r", "24",
+        "-c:a", "copy", "-pix_fmt", "yuv420p", "-shortest", "-movflags", "+faststart", str(video),
     ], check=True)
+    duration = float(subprocess.check_output([
+        "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", str(video)
+    ], text=True).strip())
+    if not 175 <= duration <= 181:
+        raise SystemExit(f"Unexpected video duration: {duration:.2f}s")
     metadata = {
         "date": request["date"], "title": request["title"], "artist": config["artist_name"],
         "lyrics": [line for line in request["lyrics"].splitlines() if line and not line.startswith("[")],
