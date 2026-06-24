@@ -54,11 +54,16 @@ jobs:
         run: |
           mkdir -p .kaggle-kernel
           cp kaggle/kernel.py .kaggle-kernel/kernel.py
-          cp kaggle/request.json .kaggle-kernel/request.json
           python - <<'PY'
+          import base64
           import json
           import os
           from pathlib import Path
+          kernel = Path(".kaggle-kernel/kernel.py")
+          request = Path("kaggle/request.json").read_bytes()
+          text = kernel.read_text(encoding="utf-8")
+          text = text.replace("__REQUEST_JSON_BASE64__", base64.b64encode(request).decode("ascii"))
+          kernel.write_text(text, encoding="utf-8")
           username = os.environ["KAGGLE_USERNAME"]
           metadata = {
               "id": f"{username}/neon-k-trot-generator",
@@ -83,7 +88,12 @@ jobs:
             STATUS="$(kaggle kernels status "$KAGGLE_USERNAME/neon-k-trot-generator")"
             echo "$STATUS"
             if echo "$STATUS" | grep -qi complete; then exit 0; fi
-            if echo "$STATUS" | grep -Eqi 'error|failed|cancel'; then exit 1; fi
+            if echo "$STATUS" | grep -Eqi 'error|failed|cancel'; then
+              mkdir -p kaggle-output
+              kaggle kernels output "$KAGGLE_USERNAME/neon-k-trot-generator" -p kaggle-output -o || true
+              find kaggle-output -name ERROR.txt -exec cat {} \; || true
+              exit 1
+            fi
             sleep 60
           done
           exit 1
@@ -93,6 +103,10 @@ jobs:
           mkdir -p kaggle-output
           kaggle kernels output "$KAGGLE_USERNAME/neon-k-trot-generator" -p kaggle-output -o
           find kaggle-output -maxdepth 3 -type f
+          if find kaggle-output -name ERROR.txt -print -quit | grep -q .; then
+            cat "$(find kaggle-output -name ERROR.txt -print -quit)"
+            exit 1
+          fi
 
       - name: Package mastered YouTube video
         run: |
