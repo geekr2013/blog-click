@@ -1,8 +1,8 @@
 {
-  "artist_name": "Mina Neon",
-  "persona": "A cheerful fictional time-traveling singer from 1989 Seoul, performing futuristic English K-trot.",
-  "series_name": "Neon K-Trot Daily",
-  "language": "en",
+  "artist_name": "미나 네온 Mina Neon",
+  "persona": "1989년 서울에서 온 가상의 뉴트로 트롯 가수 미나 네온입니다. 모든 곡과 가사는 새롭게 만든 오리지널 작품입니다.",
+  "series_name": "미나 네온의 뉴트로 트롯",
+  "language": "ko",
   "privacy_status": "private",
   "category_id": "10",
   "tags": [
@@ -11,7 +11,7 @@
     "retro",
     "newtro",
     "AI character",
-    "robot vocal"
+    "한국 트로트"
   ],
-  "disclosure": "Original procedural music and fictional synthetic vocal. No real singer voice is cloned."
+  "disclosure": "Original AI-assisted music and fictional synthetic singer. No real singer voice is cloned."
 }
