@@ -1,6 +1,11 @@
 name: Quality Korean K-trot via free GPU
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".quality-test-trigger"
   schedule:
     - cron: "0 0 * * 2,5"
   workflow_dispatch:
