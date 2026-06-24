@@ -65,11 +65,12 @@ def main():
     subprocess.run([
         "ffmpeg", "-y", "-loop", "1", "-i", str(cover), "-i", str(mastered),
         "-filter_complex",
-        "[0:v]scale=1280:720,zoompan=z='min(zoom+0.00015,1.06)':d=1:s=1280x720:fps=30[bg];"
+        "[0:v]scale=1280:720,fps=24[bg];"
         "[1:a]asplit=2[audio][visual];"
-        "[visual]showwaves=s=1080x130:mode=cline:rate=30:colors=0x00ffdc@0.85,format=rgba[wave];"
+        "[visual]showwaves=s=1080x130:mode=cline:rate=24:colors=0x00ffdc@0.85,format=rgba[wave];"
         "[bg][wave]overlay=(W-w)/2:H-h-45[v]",
-        "-map", "[v]", "-map", "[audio]", "-c:v", "libx264", "-preset", "medium",
+        "-map", "[v]", "-map", "[audio]", "-c:v", "libx264", "-preset", "veryfast",
+        "-tune", "stillimage", "-crf", "22", "-r", "24",
         "-c:a", "aac", "-b:a", "320k", "-pix_fmt", "yuv420p", "-shortest", "-movflags", "+faststart", str(video),
     ], check=True)
     metadata = {
