@@ -15,7 +15,6 @@ MEMORIES = ["빨간 우산", "낡은 카세트", "빛바랜 사진", "당신의 
 def build_request(run_date: str) -> dict:
     rng = random.Random(int(run_date.replace("-", "")))
     song_title = rng.choice(TITLES)
-    display_title = f"{song_title} · {run_date}"
     place, memory = rng.choice(PLACES), rng.choice(MEMORIES)
     lyrics = f"""[Intro]
 아 아, 오늘도 두 박자
@@ -70,7 +69,7 @@ def build_request(run_date: str) -> dict:
 """
     return {
         "date": run_date,
-        "title": display_title,
+        "title": song_title,
         "song_title": song_title,
         "caption": "High-quality Korean newtro trot song with a natural expressive adult female singer, warm human vocal timbre, emotional vibrato, clear Korean diction, tasteful vocal bends, 1980s and 1990s Korean trot arrangement, 2/4 rhythm, acoustic drums, electric bass, brass section, accordion, clean electric guitar, analog synth, dynamic verse and huge catchy chorus. Professional studio recording and mastering, organic performance, no robotic voice, no spoken vocals.",
         "negative_prompt": "robotic voice, text to speech, vocoder, metallic vocal, flat emotion, child voice, poor pronunciation, distorted vocal, muddy mix, clipping, demo quality",
